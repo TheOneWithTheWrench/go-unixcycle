@@ -1,8 +1,6 @@
 package unixcycle
 
-type make[T any] *T
-type makeFunc[T any] func() *T
-type makeErrFunc[T any] func() (*T, error)
+import "fmt"
 
 type StarterConstraint[T any] interface {
 	*T
@@ -20,46 +18,74 @@ type StarterStopperConstraint[T any] interface {
 }
 
 func Starter[T any, CI StarterConstraint[T]](x any) *component {
-	return wrap[T](x)
+	var (
+		component = &component{}
+		obj       = wrap[T](x)
+	)
+
+	var untyped interface{} = obj
+	if casted, ok := untyped.(Startable); ok {
+		component.StartFunc = casted
+	} else {
+		panic(fmt.Sprintf("unsupported type %T", x))
+	}
+
+	return component
 }
 
 func Stopper[T any, CI StopperConstraint[T]](x any) *component {
-	return wrap[T](x)
+	var (
+		component = &component{}
+		obj       = wrap[T](x)
+	)
+
+	var untyped interface{} = obj
+	if casted, ok := untyped.(Stoppable); ok {
+		component.StopFunc = casted
+	} else {
+		panic(fmt.Sprintf("unsupported type %T", x))
+	}
+
+	return component
 }
 
 // Make function is a convenience function to create a component from a function that returns a pointer to a struct that implements unixcycle.StartStopper
 func Make[T any, CI StarterStopperConstraint[T]](x any) *component {
-	return wrap[T](x)
+	var (
+		component = &component{}
+		obj       = wrap[T](x)
+	)
+
+	var untyped interface{} = obj
+	if casted, ok := untyped.(StartStopper); ok {
+		component.StartFunc = casted
+		component.StopFunc = casted
+	} else {
+		panic(fmt.Sprintf("unsupported type %T", x))
+	}
+
+	return component
 }
 
-func wrap[T any](x any) *component {
+func wrap[T any](x any) *T {
 	var (
-		obj       *T
-		err       error
-		component = &component{}
+		obj *T
+		err error
 	)
 
 	switch x := x.(type) {
-	case make[T]:
+	case *T:
 		obj = x
-	case makeFunc[T]:
+	case func() *T:
 		obj = x()
-	case makeErrFunc[T]:
+	case func() (*T, error):
 		obj, err = x()
 	default:
-		panic("invalid type")
+		panic(fmt.Sprintf("unsupported type %T", x))
 	}
 	if err != nil {
 		panic(err)
 	}
 
-	var something interface{} = obj
-	if casted, ok := something.(Startable); ok {
-		component.StartFunc = casted
-	}
-	if casted, ok := something.(Stoppable); ok {
-		component.StopFunc = casted
-	}
-
-	return component
+	return obj
 }
