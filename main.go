@@ -6,9 +6,11 @@ import (
 )
 
 func main() {
-	// myComp, _ := NewMyTestComponent()
+	myFactoryFunc := func() (*myTestComponent, error) {
+		return &myTestComponent{}, nil
+	}
 	manager := unixcycle.NewManager(
-		unixcycle.Stopper[myTestComponent](NewMyTestComponent),
+		unixcycle.Stopper[myTestComponent](myFactoryFunc),
 	)
 
 	manager.Run()
@@ -21,7 +23,7 @@ func NewMyTestComponent() (*myTestComponent, error) {
 	return &myTestComponent{}, nil
 }
 
-func (c *myTestComponent) StartButDiff() error {
+func (c *myTestComponent) Start() error {
 	fmt.Printf("Starting myTestComponent\n")
 	return nil
 }
