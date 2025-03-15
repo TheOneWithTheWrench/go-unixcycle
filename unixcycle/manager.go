@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	errFuncTimeout = fmt.Errorf("function did not complete within the given timeout")
+	errTimeout = fmt.Errorf("function did not complete within the given timeout")
 )
 
 func defaultOptions() *managerOptions {
@@ -53,22 +53,49 @@ func (m *Manager) Add(name string, components Component) *Manager {
 }
 
 func (m *Manager) Run() syscall.Signal {
+	err := m.setupComponents()
+	if errors.Is(err, errTimeout) {
+		return syscall.SIGALRM
+	}
+	if err != nil {
+		return syscall.SIGABRT
+	}
+
+	m.startComponents()
+
+	signal := m.lifetime() // Wait for the exit signal
+
+	err = m.closeComponents()
+	if errors.Is(err, errTimeout) {
+		return syscall.SIGALRM
+	}
+	if err != nil {
+		return syscall.SIGABRT
+	}
+
+	return signal
+}
+
+func (m *Manager) setupComponents() error {
 	for _, s := range m.components {
 		setupable, ok := s.Component.(setupable)
 		if ok {
 			m.logger.Info(fmt.Sprintf("[UnixCycle] Setting up component %q", s.name), slog.String("component_name", s.name))
 			err := funcOrTimeout(setupable.Setup, m.setupTimeout)
-			if errors.Is(err, errFuncTimeout) {
+			if errors.Is(err, errTimeout) {
 				m.logger.Error(fmt.Sprintf("[UnixCycle] Setup timed out for component %q", s.name), slog.String("component_name", s.name))
-				return syscall.SIGALRM
+				return err
 			}
 			if err != nil {
 				m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during setup for component %q: %v", s.name, err), slog.String("component_name", s.name))
-				return syscall.SIGABRT
+				return err
 			}
 		}
 	}
+	return nil
+}
 
+func (m *Manager) startComponents() {
 	for _, s := range m.components {
 		startable, ok := s.Component.(startable)
 		if ok {
@@ -82,26 +109,26 @@ func (m *Manager) Run() syscall.Signal {
 			}()
 		}
 	}
+}
 
-	signal := m.lifetime() // Wait for the exit signal
-
+func (m *Manager) closeComponents() error {
 	for _, s := range slices.Backward(m.components) {
 		closable, ok := s.Component.(closable)
 		if ok {
 			m.logger.Info(fmt.Sprintf("[UnixCycle] Closing component %q", s.name), slog.String("component_name", s.name))
 			err := funcOrTimeout(closable.Close, m.closeTimeout)
-			if errors.Is(err, errFuncTimeout) {
+			if errors.Is(err, errTimeout) {
 				m.logger.Error(fmt.Sprintf("[UnixCycle] Close timed out for component %q", s.name), slog.String("component_name", s.name))
-				return syscall.SIGALRM
+				return err
 			}
 			if err != nil {
 				m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during close for component %q: %v", s.name, err), slog.String("component_name", s.name))
-				return syscall.SIGABRT
+				return err
 			}
 		}
 	}
 
-	return signal
+	return nil
 }
 
 func funcOrTimeout(f func() error, timeout time.Duration) error {
@@ -114,6 +141,6 @@ func funcOrTimeout(f func() error, timeout time.Duration) error {
 	case err := <-errs:
 		return err
 	case <-time.After(timeout):
-		return errFuncTimeout
+		return errTimeout
 	}
 }
