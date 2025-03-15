@@ -6,29 +6,40 @@ import (
 )
 
 func main() {
-	myFactoryFunc := func() (*myTestComponent, error) {
-		return &myTestComponent{}, nil
-	}
-	manager := unixcycle.NewManager(
-		unixcycle.Stopper[myTestComponent](myFactoryFunc),
-	)
+	myComp, _ := NewMyTestComponent()
+	exitSignal := unixcycle.NewManager().
+		Add(
+			unixcycle.Make[myTestComponent](func() *myTestComponent {
+				return myComp
+			}),
+		).Run()
 
-	manager.Run()
+	fmt.Printf("Exit signal: %q\n", exitSignal)
 }
 
 type myTestComponent struct {
+	stopwork chan bool
 }
 
 func NewMyTestComponent() (*myTestComponent, error) {
-	return &myTestComponent{}, nil
+	return &myTestComponent{stopwork: make(chan bool)}, nil
+}
+
+func (c *myTestComponent) Setup() error {
+	fmt.Printf("Setting up myTestComponent\n")
+	return nil
 }
 
 func (c *myTestComponent) Start() error {
 	fmt.Printf("Starting myTestComponent\n")
+	<-c.stopwork
+	fmt.Printf("received stopwork signal\n")
+	// Do some blocking work
 	return nil
 }
 
-func (c *myTestComponent) Stop() error {
-	fmt.Printf("Stopping myTestComponent\n")
+func (c *myTestComponent) Close() error {
+	fmt.Printf("Closing myTestComponent\n")
+	c.stopwork <- true
 	return nil
 }
