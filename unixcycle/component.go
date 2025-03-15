@@ -17,6 +17,11 @@ type Component interface {
 	Start() error
 }
 
+type namedComponent struct {
+	Component
+	name string
+}
+
 var _ Component = &setupComponent{}
 
 type setupComponent struct {

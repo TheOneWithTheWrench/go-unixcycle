@@ -8,10 +8,8 @@ import (
 func main() {
 	myComp, _ := NewMyTestComponent()
 	exitSignal := unixcycle.NewManager().
-		Add(
-			unixcycle.Make[myTestComponent](func() *myTestComponent {
-				return myComp
-			})).
+		Add("myCloser", unixcycle.Closer(myComp.Close)).
+		Add("myTestComponent", unixcycle.Make[myTestComponent](myComp)).
 		Run()
 
 	fmt.Printf("Exit signal: %q\n", exitSignal)
