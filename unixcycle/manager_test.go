@@ -37,7 +37,7 @@ func TestManager(t *testing.T) {
 				calledCount++
 				return nil
 			}
-			sut = m.Add(unixcycle.Starter(startable))
+			sut = m.Add("startable func", unixcycle.Starter(startable))
 		)
 
 		got := sut.Run()
@@ -55,7 +55,7 @@ func TestManager(t *testing.T) {
 				calledCount++
 				return nil
 			}
-			sut = m.Add(unixcycle.Setup(setupable))
+			sut = m.Add("setup func", unixcycle.Setup(setupable))
 		)
 
 		got := sut.Run()
@@ -72,7 +72,7 @@ func TestManager(t *testing.T) {
 				calledCount++
 				return nil
 			}
-			sut = m.Add(unixcycle.Closer(closable))
+			sut = m.Add("closeable func", unixcycle.Closer(closable))
 		)
 
 		shutdown(syscall.Signal(0)) // We can't shutdown from the closer func. Since it's called AFTER the signal is received
@@ -90,7 +90,7 @@ func TestManager(t *testing.T) {
 				startFunc: func() error { shutdown(syscall.Signal(0)); return nil },
 				closeFunc: func() error { return nil },
 			}
-			sut = m.Add(unixcycle.Make[testComponent](testComp))
+			sut = m.Add("make func", unixcycle.Make[testComponent](testComp))
 		)
 
 		got := sut.Run()
@@ -113,7 +113,7 @@ func TestManager(t *testing.T) {
 				calledCount.Add(1)                 // This should not be called due to the timeout
 				return nil
 			}
-			sut = m.Add(unixcycle.Setup(slowSetup))
+			sut = m.Add("slow func", unixcycle.Setup(slowSetup))
 		)
 
 		got := sut.Run()

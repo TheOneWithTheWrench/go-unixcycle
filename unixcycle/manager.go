@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"syscall"
 	"time"
 )
@@ -23,7 +24,7 @@ func defaultOptions() *managerOptions {
 }
 
 type Manager struct {
-	components []Component
+	components []namedComponent
 
 	logger       *slog.Logger
 	setupTimeout time.Duration
@@ -45,38 +46,38 @@ func NewManager(options ...managerOption) *Manager {
 	}
 }
 
-func (m *Manager) Add(components ...Component) *Manager {
-	m.components = append(m.components, components...)
+func (m *Manager) Add(name string, components Component) *Manager {
+	m.components = append(m.components, namedComponent{name: name, Component: components})
 
 	return m
 }
 
 func (m *Manager) Run() syscall.Signal {
 	for _, s := range m.components {
-		setupable, ok := s.(setupable)
+		setupable, ok := s.Component.(setupable)
 		if ok {
-			m.logger.Info(fmt.Sprintf("[UnixCycle] Setting up component of type %T", s), slog.String("component_type", fmt.Sprintf("%T", s)))
+			m.logger.Info(fmt.Sprintf("[UnixCycle] Setting up component %q", s.name), slog.String("component_name", s.name))
 			err := funcOrTimeout(setupable.Setup, m.setupTimeout)
 			if errors.Is(err, errFuncTimeout) {
-				m.logger.Error(fmt.Sprintf("[UnixCycle] Setup timed out for component of type %T", s), slog.String("component_type", fmt.Sprintf("%T", s)))
+				m.logger.Error(fmt.Sprintf("[UnixCycle] Setup timed out for component %q", s.name), slog.String("component_name", s.name))
 				return syscall.SIGALRM
 			}
 			if err != nil {
-				m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during setup for component of type %T: %v", s, err), slog.String("component_type", fmt.Sprintf("%T", s)))
+				m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during setup for component %q: %v", s.name, err), slog.String("component_name", s.name))
 				return syscall.SIGABRT
 			}
 		}
 	}
 
 	for _, s := range m.components {
-		startable, ok := s.(startable)
+		startable, ok := s.Component.(startable)
 		if ok {
-			m.logger.Info(fmt.Sprintf("[UnixCycle] Starting component of type %T", s), slog.String("component_type", fmt.Sprintf("%T", s)))
+			m.logger.Info(fmt.Sprintf("[UnixCycle] Starting component %q", s.name), slog.String("component_name", s.name))
 			go func() {
 				err := startable.Start() // Blocking for go routine
 				if err != nil {
 					//TODO: We need to signal the manager somehow that a stop failed...
-					m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during start for component of type %T: %v", s, err), slog.String("component_type", fmt.Sprintf("%T", s)))
+					m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during start for component %q: %v", s.name, err), slog.String("component_name", s.name))
 				}
 			}()
 		}
@@ -84,17 +85,17 @@ func (m *Manager) Run() syscall.Signal {
 
 	signal := m.lifetime() // Wait for the exit signal
 
-	for _, s := range m.components {
-		closable, ok := s.(closable)
+	for _, s := range slices.Backward(m.components) {
+		closable, ok := s.Component.(closable)
 		if ok {
-			m.logger.Info(fmt.Sprintf("[UnixCycle] Closing component of type %T", s), slog.String("component_type", fmt.Sprintf("%T", s)))
+			m.logger.Info(fmt.Sprintf("[UnixCycle] Closing component %q", s.name), slog.String("component_name", s.name))
 			err := funcOrTimeout(closable.Close, m.closeTimeout)
 			if errors.Is(err, errFuncTimeout) {
-				m.logger.Error(fmt.Sprintf("[UnixCycle] Close timed out for component of type %T", s), slog.String("component_type", fmt.Sprintf("%T", s)))
+				m.logger.Error(fmt.Sprintf("[UnixCycle] Close timed out for component %q", s.name), slog.String("component_name", s.name))
 				return syscall.SIGALRM
 			}
 			if err != nil {
-				m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during close for component of type %T: %v", s, err), slog.String("component_type", fmt.Sprintf("%T", s)))
+				m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during close for component %q: %v", s.name, err), slog.String("component_name", s.name))
 				return syscall.SIGABRT
 			}
 		}
