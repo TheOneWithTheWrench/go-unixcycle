@@ -11,8 +11,8 @@ func main() {
 		Add(
 			unixcycle.Make[myTestComponent](func() *myTestComponent {
 				return myComp
-			}),
-		).Run()
+			})).
+		Run()
 
 	fmt.Printf("Exit signal: %q\n", exitSignal)
 }
