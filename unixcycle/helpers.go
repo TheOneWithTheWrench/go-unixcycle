@@ -1,70 +1,39 @@
 package unixcycle
 
-import "fmt"
-
-type StarterConstraint[T any] interface {
-	*T
-	Startable
-}
-
-type StopperConstraint[T any] interface {
-	*T
-	Stoppable
-}
-
-type StarterStopperConstraint[T any] interface {
-	*T
-	StartStopper
-}
-
-func Starter[T any, CI StarterConstraint[T]](x any) *component {
-	var (
-		component = &component{}
-		obj       = wrap[T](x)
-	)
-
-	var untyped interface{} = obj
-	if casted, ok := untyped.(Startable); ok {
-		component.StartFunc = casted
-	} else {
-		panic(fmt.Sprintf("unsupported type %T", x))
-	}
-
-	return component
-}
-
-func Stopper[T any, CI StopperConstraint[T]](x any) *component {
-	var (
-		component = &component{}
-		obj       = wrap[T](x)
-	)
-
-	var untyped interface{} = obj
-	if casted, ok := untyped.(Stoppable); ok {
-		component.StopFunc = casted
-	} else {
-		panic(fmt.Sprintf("unsupported type %T", x))
-	}
-
-	return component
-}
+import (
+	"fmt"
+)
 
 // Make function is a convenience function to create a component from a function that returns a pointer to a struct that implements unixcycle.StartStopper
-func Make[T any, CI StarterStopperConstraint[T]](x any) *component {
+func Make[T any, SSC starterConstraint[T], MC makerConstraint[T]](x MC) Component {
 	var (
-		component = &component{}
-		obj       = wrap[T](x)
+		obj = wrap[T](x)
 	)
 
-	var untyped interface{} = obj
-	if casted, ok := untyped.(StartStopper); ok {
-		component.StartFunc = casted
-		component.StopFunc = casted
-	} else {
-		panic(fmt.Sprintf("unsupported type %T", x))
-	}
+	var untyped any = obj
+	return untyped.(Component)
+}
 
-	return component
+func Setup(setupFunc func() error) *setupComponent {
+	return &setupComponent{setupFunc: setupFunc}
+}
+
+func Starter(startFunc func() error) *starterComponent {
+	return &starterComponent{startFunc: startFunc}
+}
+
+func Closer(closeFunc func() error) *closerComponent {
+	return &closerComponent{closeFunc: closeFunc}
+}
+
+// Type constraint to allow either makeFunc[T] or makeErrorFunc[T]
+type makerConstraint[T any] interface {
+	*T | ~func() *T | func() (*T, error)
+}
+
+type starterConstraint[T any] interface {
+	*T
+	startable
 }
 
 func wrap[T any](x any) *T {
