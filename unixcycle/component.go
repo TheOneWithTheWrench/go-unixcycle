@@ -14,8 +14,6 @@ type closable interface {
 
 type Component interface {
 	// Start is the long running part of a "Component"
-	// I'm thinking a component potentially has a setup and a closer func
-	// But it should always have something that's long running. Else why would we need UnixCycle to handle it?
 	Start() error
 }
 
