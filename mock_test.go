@@ -6,7 +6,8 @@ package unixcycle_test
 import (
 	"context"
 	"sync"
-	"unixcycle/unixcycle"
+	
+	"github.com/theonewiththewrench/unixcycle"
 )
 
 // Ensure, that ProberMock does implement unixcycle.Prober.

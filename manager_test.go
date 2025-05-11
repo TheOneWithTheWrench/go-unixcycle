@@ -5,9 +5,9 @@ import (
 	"syscall"
 	"testing"
 	"time"
-	"unixcycle/unixcycle"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/theonewiththewrench/unixcycle"
 )
 
 func TestManager(t *testing.T) {
