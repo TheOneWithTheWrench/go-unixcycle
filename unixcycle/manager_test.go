@@ -28,25 +28,7 @@ func TestManager(t *testing.T) {
 		}
 	)
 
-	t.Run("start is called on startable component", func(t *testing.T) {
-		var (
-			m, shutdown = newManager()
-			calledCount = 0
-			startable   = func() error {
-				defer shutdown(syscall.Signal(0))
-				calledCount++
-				return nil
-			}
-			sut = m.Add("startable func", unixcycle.Starter(startable))
-		)
-
-		got := sut.Run()
-
-		assert.Equal(t, calledCount, 1)
-		assert.Equal(t, syscall.Signal(0), got)
-	})
-
-	t.Run("setup is called on setupable component", func(t *testing.T) {
+	t.Run("should call setup on setupable component", func(t *testing.T) {
 		var (
 			m, shutdown = newManager()
 			calledCount = 0
@@ -64,7 +46,25 @@ func TestManager(t *testing.T) {
 		assert.Equal(t, syscall.Signal(0), got)
 	})
 
-	t.Run("close is called on closable component", func(t *testing.T) {
+	t.Run("should call start on startable component", func(t *testing.T) {
+		var (
+			m, shutdown = newManager()
+			calledCount = 0
+			startable   = func() error {
+				defer shutdown(syscall.Signal(0))
+				calledCount++
+				return nil
+			}
+			sut = m.Add("startable func", unixcycle.Starter(startable))
+		)
+
+		got := sut.Run()
+
+		assert.Equal(t, calledCount, 1)
+		assert.Equal(t, syscall.Signal(0), got)
+	})
+
+	t.Run("should call close on closable component", func(t *testing.T) {
 		var (
 			m, shutdown = newManager()
 			calledCount = 0
@@ -82,7 +82,7 @@ func TestManager(t *testing.T) {
 		assert.Equal(t, syscall.Signal(0), got)
 	})
 
-	t.Run("a components setup, start and close functions are called if they are present", func(t *testing.T) {
+	t.Run("should call setup, start and close functions on component if they are present", func(t *testing.T) {
 		var (
 			m, shutdown = newManager()
 			testComp    = &testComponent{
