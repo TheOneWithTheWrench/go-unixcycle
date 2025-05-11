@@ -167,7 +167,6 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## 🏗️ Future work
 * **More Tests:** Add more tests to ensure reliability and robustness.
-* **Better testing setup:** Setup the manager with TestMain and probably have some concepts of "probes" that can answer when the manager is ready.
 
 ## 📜 License
 

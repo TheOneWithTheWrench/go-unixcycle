@@ -7,10 +7,10 @@ import (
 	"syscall"
 	"testing"
 	"time"
-	"unixcycle/unixcycle"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/theonewiththewrench/unixcycle"
 )
 
 func TestTesting(t *testing.T) {

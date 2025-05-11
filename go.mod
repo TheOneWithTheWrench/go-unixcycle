@@ -1,4 +1,4 @@
-module unixcycle
+module github.com/theonewiththewrench/unixcycle
 
 go 1.23.0
 

@@ -24,7 +24,7 @@ func (p ProberFunc) Probe(ctx context.Context) error {
 }
 
 // TestMain is a test entry point that sets up a service.
-// It instructs the manager with the text fixtures and run the prober.
+// It instructs the manager with the test fixtures and run the prober.
 // Whenever the prober gives green light, the tests are run.
 // Great for acceptance tests, where you want to setup some fixtures (usually mocks) and run the tests.
 func TestMain(m TestingM, manager *Manager, prober ProberFunc, testFixtures ...Component) int {
