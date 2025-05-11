@@ -30,7 +30,7 @@ Unixcycle provides a structured and centralized way to handle this:
 
 ## 💾 Installation
 
-    go get github.com/TheOneWithTheWrench/go-unixcycle
+    go get github.com/theonewiththewrench/unixcycle
 
 ## 🚀 Usage
 
@@ -46,7 +46,7 @@ import (
 	"syscall"
 	"time"
 
-	unixcycle "github.com/TheOneWithTheWrench/go-unixcycle"
+	unixcycle "github.com/TheOneWithTheWrench/unixcycle"
 )
 
 // Component 1: A service implementing Setup, Start, and Close
