@@ -95,6 +95,11 @@ func (m *Manager) setupComponents() error {
 	return nil
 }
 
+// TODO: startComponents could definitely use some more love
+// It would be great for a way for start methods to signal the manager that a start errored, this way we can make sure we close back down gracefully..
+// Maybe something can be done with error groups?
+//
+// TODO: We should probably also think in some panic handling... Maybe that goes for Setup and Close aswell
 func (m *Manager) startComponents() {
 	for _, s := range m.components {
 		startable, ok := s.Component.(startable)
@@ -103,7 +108,7 @@ func (m *Manager) startComponents() {
 			go func() {
 				err := startable.Start() // Blocking for go routine
 				if err != nil {
-					//TODO: We need to signal the manager somehow that a stop failed...
+					//TODO: We need to signal the manager somehow that a start failed...
 					m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during start for component %q: %v", s.name, err), slog.String("component_name", s.name))
 				}
 			}()
