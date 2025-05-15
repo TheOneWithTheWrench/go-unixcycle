@@ -121,6 +121,56 @@ func TestManager(t *testing.T) {
 		assert.Equal(t, uint32(0), calledCount.Load())
 		assert.Equal(t, syscall.SIGALRM, got)
 	})
+
+	t.Run("should close back down when a start function errors", func(t *testing.T) {
+		var (
+			m, _         = newManager()
+			startCalled  = false
+			closedCalled = false
+			closeable    = func() error {
+				closedCalled = true
+				return nil
+			}
+			startable = func() error {
+				startCalled = true
+				return assert.AnError
+			}
+			sut = m.
+				Add("startable func", unixcycle.Starter(startable)).
+				Add("closable func", unixcycle.Closer(closeable))
+		)
+
+		got := sut.Run()
+
+		assert.Equal(t, startCalled, true, "startable func should have been called")
+		assert.Equal(t, closedCalled, true, "closable func should have been called")
+		assert.Equal(t, syscall.SIGABRT, got)
+	})
+
+	t.Run("should close back down when a start function panics", func(t *testing.T) {
+		var (
+			m, _         = newManager()
+			startCalled  = false
+			closedCalled = false
+			closeable    = func() error {
+				closedCalled = true
+				return nil
+			}
+			startable = func() error {
+				startCalled = true
+				panic("panic")
+			}
+			sut = m.
+				Add("startable func", unixcycle.Starter(startable)).
+				Add("closable func", unixcycle.Closer(closeable))
+		)
+
+		got := sut.Run()
+
+		assert.Equal(t, startCalled, true, "startable func should have been called")
+		assert.Equal(t, closedCalled, true, "closable func should have been called")
+		assert.Equal(t, syscall.SIGABRT, got)
+	})
 }
 
 type testComponent struct {
