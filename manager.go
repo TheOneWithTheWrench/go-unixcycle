@@ -30,6 +30,8 @@ type Manager struct {
 	setupTimeout time.Duration
 	closeTimeout time.Duration
 	lifetime     TerminationSignal
+
+	exitSignal chan syscall.Signal
 }
 
 func NewManager(options ...managerOption) *Manager {
@@ -43,6 +45,7 @@ func NewManager(options ...managerOption) *Manager {
 		setupTimeout: ops.setupTimeout,
 		closeTimeout: ops.closeTimeout,
 		lifetime:     ops.lifetime,
+		exitSignal:   make(chan syscall.Signal, 1),
 	}
 }
 
@@ -63,7 +66,7 @@ func (m *Manager) Run() syscall.Signal {
 
 	m.startComponents()
 
-	signal := m.lifetime() // Wait for the exit signal
+	signal := m.waitForSignal() // Wait for the exit signal
 
 	err = m.closeComponents()
 	if errors.Is(err, errTimeout) {
@@ -95,25 +98,36 @@ func (m *Manager) setupComponents() error {
 	return nil
 }
 
-// TODO: startComponents could definitely use some more love
-// It would be great for a way for start methods to signal the manager that a start errored, this way we can make sure we close back down gracefully..
-// Maybe something can be done with error groups?
-//
-// TODO: We should probably also think in some panic handling... Maybe that goes for Setup and Close aswell
 func (m *Manager) startComponents() {
 	for _, s := range m.components {
 		startable, ok := s.Component.(startable)
 		if ok {
 			m.logger.Info(fmt.Sprintf("[UnixCycle] Starting component %q", s.name), slog.String("component_name", s.name))
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						m.logger.Error(fmt.Sprintf("[UnixCycle] Panic during start for component %q: %v", s.name, r), slog.String("component_name", s.name))
+						m.exitSignal <- syscall.SIGABRT
+					}
+				}()
 				err := startable.Start() // Blocking for go routine
 				if err != nil {
-					//TODO: We need to signal the manager somehow that a start failed...
 					m.logger.Error(fmt.Sprintf("[UnixCycle] Failure during start for component %q: %v", s.name, err), slog.String("component_name", s.name))
+					m.exitSignal <- syscall.SIGABRT
 				}
 			}()
 		}
 	}
+}
+
+func (m *Manager) waitForSignal() syscall.Signal {
+	go func() {
+		m.exitSignal <- m.lifetime()
+	}()
+
+	signal := <-m.exitSignal
+	m.logger.Info(fmt.Sprintf("[UnixCycle] Received signal: %v", signal), slog.String("signal", signal.String()))
+	return signal
 }
 
 func (m *Manager) closeComponents() error {
