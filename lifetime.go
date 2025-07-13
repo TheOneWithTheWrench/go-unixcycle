@@ -11,7 +11,7 @@ type TerminationSignal func() syscall.Signal
 func InterruptSignal() syscall.Signal {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	<-signals
+	sig := <-signals
 
-	return syscall.Signal(0)
+	return sig.(syscall.Signal)
 }

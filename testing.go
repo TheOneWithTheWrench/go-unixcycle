@@ -32,7 +32,7 @@ func TestMain(m TestingM, manager *Manager, prober ProberFunc, testFixtures ...C
 		managerStopped = make(chan syscall.Signal)
 		proberLifetime = func() syscall.Signal {
 			if err := prober(context.Background()); err != nil {
-				manager.logger.Error("[UnixCycle] unable to run tests due to prober failing with error", "error", err)
+				manager.logError("unable to run tests due to prober failing with error", "error", err)
 				return syscall.SIGUSR1
 			}
 			return syscall.Signal(m.Run())
