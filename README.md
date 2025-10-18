@@ -79,11 +79,11 @@ func (s *MyService) Close() error {
 
 func main() {
 	// Setup logger
-	logHandler := slog.NewTextHandler(os.Stdout, nil)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Configure the manager
 	manager := unixcycle.NewManager(
-		unixcycle.WithLoggingHandler(logHandler),
+		unixcycle.WithLogger(logger),
 		unixcycle.WithSetupTimeout(1*time.Second),
 		unixcycle.WithCloseTimeout(2*time.Second),
 		// unixcycle.WithLifetime(unixcycle.InterruptSignal), // Default
@@ -149,7 +149,7 @@ These simplify creating `Component` values:
 
 Pass these to `NewManager` using the `With...` functions:
 
-* `unixcycle.WithLoggingHandler(handler slog.Handler)`: Sets the `slog` handler for logging. If `nil`, logging is disabled (sent to `io.Discard`). Defaults to a text handler writing to `os.Stdout`.
+* `unixcycle.WithLogger(logger *slog.Logger)`: Sets the `slog` logger for logging. If `nil`, logging is disabled (sent to `io.Discard`). Defaults to a text handler writing to `os.Stdout`.
 * `unixcycle.WithSetupTimeout(time.Duration)`: Timeout for *each* component's `Setup()` call. Defaults to 5 seconds.
 * `unixcycle.WithCloseTimeout(time.Duration)`: Timeout for *each* component's `Close()` call. Defaults to 5 seconds.
 * `unixcycle.WithLifetime(unixcycle.TerminationSignal)`: A function `func() syscall.Signal` that blocks until termination is requested. Defaults to `unixcycle.InterruptSignal` (waits for `SIGINT` or `SIGTERM`).
