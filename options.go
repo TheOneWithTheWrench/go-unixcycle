@@ -1,7 +1,6 @@
 package unixcycle
 
 import (
-	"io"
 	"log/slog"
 	"time"
 )
@@ -39,16 +38,11 @@ func WithCloseTimeout(timeout time.Duration) managerOption {
 	}
 }
 
-// WithLoggingHandler sets the logger for the manager
+// WithLogger sets the logger for the manager
 // If handler is nil, the manager will log nothing
 // Default is a text logging handler that writes to os.Stdout
-func WithLoggingHandler(handler slog.Handler) managerOption {
+func WithLogger(logger *slog.Logger) managerOption {
 	return func(o *managerOptions) {
-		if handler == nil {
-			o.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
-			return
-		}
-
-		o.logger = slog.New(handler)
+		o.logger = logger
 	}
 }
