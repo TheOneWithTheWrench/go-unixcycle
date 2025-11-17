@@ -12,19 +12,19 @@ import (
 
 func TestManager(t *testing.T) {
 	var (
-		manualSignal = func(signalChan chan syscall.Signal) unixcycle.TerminationSignal {
-			return func() syscall.Signal {
+		manualSignal = func(signalChan chan int) unixcycle.TerminationSignal {
+			return func() int {
 				return <-signalChan
 			}
 		}
-		newManager = func() (*unixcycle.Manager, func(syscall.Signal)) {
-			shutdownChan := make(chan syscall.Signal, 1)
+		newManager = func() (*unixcycle.Manager, func(int)) {
+			shutdownChan := make(chan int, 1)
 			m := unixcycle.NewManager(
 				unixcycle.WithLifetime(manualSignal(shutdownChan)),
 				unixcycle.WithSetupTimeout(100*time.Millisecond),
 				unixcycle.WithCloseTimeout(100*time.Millisecond),
 			)
-			return m, func(signal syscall.Signal) { shutdownChan <- signal }
+			return m, func(signal int) { shutdownChan <- signal }
 		}
 	)
 
@@ -33,7 +33,7 @@ func TestManager(t *testing.T) {
 			m, shutdown = newManager()
 			calledCount = 0
 			setupable   = func() error {
-				defer shutdown(syscall.Signal(0))
+				defer shutdown(0)
 				calledCount++
 				return nil
 			}
@@ -43,7 +43,7 @@ func TestManager(t *testing.T) {
 		got := sut.Run()
 
 		assert.Equal(t, calledCount, 1)
-		assert.Equal(t, syscall.Signal(0), got)
+		assert.Equal(t, 0, got)
 	})
 
 	t.Run("should call start on startable component", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestManager(t *testing.T) {
 			m, shutdown = newManager()
 			calledCount = 0
 			startable   = func() error {
-				defer shutdown(syscall.Signal(0))
+				defer shutdown(0)
 				calledCount++
 				return nil
 			}
@@ -61,7 +61,7 @@ func TestManager(t *testing.T) {
 		got := sut.Run()
 
 		assert.Equal(t, calledCount, 1)
-		assert.Equal(t, syscall.Signal(0), got)
+		assert.Equal(t, 0, got)
 	})
 
 	t.Run("should call close on closable component", func(t *testing.T) {
@@ -75,11 +75,11 @@ func TestManager(t *testing.T) {
 			sut = m.Add("closeable func", unixcycle.Closer(closable))
 		)
 
-		shutdown(syscall.Signal(0)) // We can't shutdown from the closer func. Since it's called AFTER the signal is received
+		shutdown(0) // We can't shutdown from the closer func. Since it's called AFTER the signal is received
 		got := sut.Run()
 
 		assert.Equal(t, calledCount, 1)
-		assert.Equal(t, syscall.Signal(0), got)
+		assert.Equal(t, 0, got)
 	})
 
 	t.Run("should call setup, start and close functions on component if they are present", func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestManager(t *testing.T) {
 			m, shutdown = newManager()
 			testComp    = &testComponent{
 				setupFunc: func() error { return nil },
-				startFunc: func() error { shutdown(syscall.Signal(0)); return nil },
+				startFunc: func() error { shutdown(0); return nil },
 				closeFunc: func() error { return nil },
 			}
 			sut = m.Add("make func", unixcycle.Make[testComponent](testComp))
@@ -98,7 +98,7 @@ func TestManager(t *testing.T) {
 		assert.Equal(t, 1, testComp.setupCalledCount)
 		assert.Equal(t, 1, testComp.startCalledCount)
 		assert.Equal(t, 1, testComp.closeCalledCount)
-		assert.Equal(t, syscall.Signal(0), got)
+		assert.Equal(t, 0, got)
 	})
 
 	// This test plays a bit with races in the setup of the manager.
@@ -119,7 +119,7 @@ func TestManager(t *testing.T) {
 		got := sut.Run()
 
 		assert.Equal(t, uint32(0), calledCount.Load())
-		assert.Equal(t, syscall.SIGALRM, got)
+		assert.Equal(t, int(syscall.SIGALRM), got)
 	})
 
 	t.Run("should close back down when a start function errors", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestManager(t *testing.T) {
 
 		assert.Equal(t, startCalled, true, "startable func should have been called")
 		assert.Equal(t, closedCalled, true, "closable func should have been called")
-		assert.Equal(t, syscall.SIGABRT, got)
+		assert.Equal(t, int(syscall.SIGABRT), got)
 	})
 
 	t.Run("should close back down when a start function panics", func(t *testing.T) {
@@ -169,7 +169,7 @@ func TestManager(t *testing.T) {
 
 		assert.Equal(t, startCalled, true, "startable func should have been called")
 		assert.Equal(t, closedCalled, true, "closable func should have been called")
-		assert.Equal(t, syscall.SIGABRT, got)
+		assert.Equal(t, int(syscall.SIGABRT), got)
 	})
 }
 

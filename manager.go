@@ -10,9 +10,7 @@ import (
 	"time"
 )
 
-var (
-	errTimeout = fmt.Errorf("function did not complete within the given timeout")
-)
+var errTimeout = fmt.Errorf("function did not complete within the given timeout")
 
 func defaultOptions() *managerOptions {
 	return &managerOptions{
@@ -31,7 +29,7 @@ type Manager struct {
 	closeTimeout time.Duration
 	lifetime     TerminationSignal
 
-	exitSignal chan syscall.Signal
+	exitSignal chan int
 }
 
 func NewManager(options ...managerOption) *Manager {
@@ -45,7 +43,7 @@ func NewManager(options ...managerOption) *Manager {
 		setupTimeout: ops.setupTimeout,
 		closeTimeout: ops.closeTimeout,
 		lifetime:     ops.lifetime,
-		exitSignal:   make(chan syscall.Signal, 1),
+		exitSignal:   make(chan int, 1),
 	}
 }
 
@@ -55,13 +53,13 @@ func (m *Manager) Add(name string, components Component) *Manager {
 	return m
 }
 
-func (m *Manager) Run() syscall.Signal {
+func (m *Manager) Run() int {
 	err := m.setupComponents()
 	if errors.Is(err, errTimeout) {
-		return syscall.SIGALRM
+		return int(syscall.SIGALRM)
 	}
 	if err != nil {
-		return syscall.SIGABRT
+		return int(syscall.SIGABRT)
 	}
 
 	m.startComponents()
@@ -70,10 +68,10 @@ func (m *Manager) Run() syscall.Signal {
 
 	err = m.closeComponents()
 	if errors.Is(err, errTimeout) {
-		return syscall.SIGALRM
+		return int(syscall.SIGALRM)
 	}
 	if err != nil {
-		return syscall.SIGABRT
+		return int(syscall.SIGABRT)
 	}
 
 	return signal
@@ -107,20 +105,20 @@ func (m *Manager) startComponents() {
 				defer func() {
 					if r := recover(); r != nil {
 						m.logError(fmt.Sprintf("Panic during start for component %q: %v", s.name, r), slog.String("component_name", s.name))
-						m.exitSignal <- syscall.SIGABRT
+						m.exitSignal <- int(syscall.SIGABRT)
 					}
 				}()
 				err := startable.Start() // Blocking for go routine
 				if err != nil {
 					m.logError(fmt.Sprintf("Failure during start for component %q: %v", s.name, err), slog.String("component_name", s.name))
-					m.exitSignal <- syscall.SIGABRT
+					m.exitSignal <- int(syscall.SIGABRT)
 				}
 			}()
 		}
 	}
 }
 
-func (m *Manager) waitForSignal() syscall.Signal {
+func (m *Manager) waitForSignal() int {
 	go func() {
 		select {
 		case m.exitSignal <- m.lifetime():
@@ -130,7 +128,7 @@ func (m *Manager) waitForSignal() syscall.Signal {
 	}()
 
 	signal := <-m.exitSignal
-	m.logInfo(fmt.Sprintf("Received signal: %v", signal), slog.String("signal", signal.String()))
+	m.logInfo(fmt.Sprintf("Received signal: %d", signal), slog.Int("signal", signal))
 	return signal
 }
 

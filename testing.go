@@ -29,13 +29,13 @@ func (p ProberFunc) Probe(ctx context.Context) error {
 // Great for acceptance tests, where you want to setup some fixtures (usually mocks) and run the tests.
 func TestMain(m TestingM, manager *Manager, prober ProberFunc, testFixtures ...Component) int {
 	var (
-		managerStopped = make(chan syscall.Signal)
-		proberLifetime = func() syscall.Signal {
+		managerStopped = make(chan int)
+		proberLifetime = func() int {
 			if err := prober(context.Background()); err != nil {
 				manager.logError("unable to run tests due to prober failing with error", "error", err)
-				return syscall.SIGUSR1
+				return int(syscall.SIGUSR1)
 			}
-			return syscall.Signal(m.Run())
+			return m.Run()
 		}
 	)
 	manager.lifetime = proberLifetime
